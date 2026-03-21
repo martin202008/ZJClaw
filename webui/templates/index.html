@@ -1,0 +1,1842 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZJClaw - 商业管理智能助手</title>
+    <style>
+        :root {
+            --primary: #1a1a2e;
+            --secondary: #16213e;
+            --accent: #e94560;
+            --accent-light: #0f3460;
+            --text: #eaeaea;
+            --text-muted: #a0a0a0;
+            --border: #2a2a4e;
+            --success: #00d26a;
+            --warning: #ffc107;
+            --error: #dc3545;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: rgba(22, 33, 62, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            height: 72px;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--accent);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .logo-text {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .logo-text span {
+            color: var(--accent);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .header-btn {
+            padding: 0.5rem 1rem;
+            background: var(--accent-light);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            cursor: pointer;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .header-btn:hover {
+            background: var(--secondary);
+            border-color: var(--accent);
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: var(--accent-light);
+            border-radius: 20px;
+            font-size: 0.875rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+        }
+
+        .status-dot.offline {
+            background: var(--error);
+        }
+
+        .status-dot.config-error {
+            background: var(--warning);
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            width: 100%;
+            height: calc(100vh - 72px);
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 280px;
+            flex-shrink: 0;
+            background: rgba(22, 33, 62, 0.95);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+            transition: width 0.3s ease, margin 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            width: 0;
+            margin-left: -1px;
+        }
+
+        .sidebar-toggle {
+            position: fixed;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 60px;
+            background: var(--secondary);
+            border: 1px solid var(--border);
+            border-left: none;
+            border-radius: 0 8px 8px 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 12px;
+            z-index: 50;
+            transition: left 0.3s ease;
+        }
+
+        .sidebar.collapsed + .sidebar-toggle {
+            left: 0;
+        }
+
+        .sidebar-toggle:hover {
+            background: var(--accent-light);
+            color: var(--text);
+        }
+
+        .sidebar-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.75rem;
+        }
+
+        .menu-section {
+            margin-bottom: 0.75rem;
+        }
+
+        .menu-title {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            user-select: none;
+        }
+
+        .menu-title:hover {
+            color: var(--text);
+        }
+
+        .menu-title::after {
+            content: '▶';
+            font-size: 0.6rem;
+            transition: transform 0.2s ease;
+        }
+
+        .menu-title.expanded::after {
+            transform: rotate(90deg);
+        }
+
+        .menu-items {
+            display: none;
+            flex-direction: column;
+            gap: 0.25rem;
+            padding-left: 0.5rem;
+        }
+
+        .menu-items.show {
+            display: flex;
+        }
+
+        .menu-item {
+            padding: 0.6rem 0.75rem;
+            background: var(--accent-light);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+        .menu-item:hover {
+            background: var(--secondary);
+            border-color: var(--accent);
+        }
+
+        .menu-item.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .menu-item-name {
+            font-weight: 600;
+            font-size: 0.875rem;
+            margin-bottom: 0.15rem;
+        }
+
+        .menu-item-desc {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        .menu-item.active .menu-item-desc {
+            color: rgba(255,255,255,0.8);
+        }
+
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(22, 33, 62, 0.8);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .chat-header {
+            padding: 1rem 1.5rem;
+            background: rgba(26, 26, 46, 0.5);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .chat-title {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .model-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            background: var(--accent-light);
+            border-radius: 12px;
+            color: var(--text-muted);
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .message {
+            display: flex;
+            gap: 1rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+
+        .message.bot .message-avatar {
+            background: var(--accent);
+        }
+
+        .message.user .message-avatar {
+            background: var(--accent-light);
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 1rem 1.25rem;
+            border-radius: 12px;
+            line-height: 1.6;
+        }
+
+        .message.bot .message-content {
+            background: var(--accent-light);
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.user .message-content {
+            background: var(--accent);
+            border-bottom-right-radius: 4px;
+        }
+
+        .message-content pre {
+            background: rgba(0,0,0,0.2);
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 0.5rem 0;
+        }
+
+        .message-content code {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background: rgba(0,0,0,0.2);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        .message-content pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .message-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0.5rem 0;
+        }
+
+        .message-content th, .message-content td {
+            border: 1px solid var(--border);
+            padding: 0.5rem;
+            text-align: left;
+        }
+
+        .message-content th {
+            background: rgba(0,0,0,0.2);
+        }
+
+        .chat-input-area {
+            padding: 1rem 1.5rem;
+            background: rgba(26, 26, 46, 0.5);
+            border-top: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .chat-input-form {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-end;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        .chat-input {
+            width: 100%;
+            padding: 1rem 1.25rem;
+            background: var(--primary);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            color: var(--text);
+            font-size: 1rem;
+            resize: none;
+            min-height: 50px;
+            max-height: 150px;
+            font-family: inherit;
+            transition: border-color 0.2s ease;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .chat-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .send-btn {
+            padding: 0.875rem 1.5rem;
+            background: var(--accent);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            background: #d63850;
+            transform: translateY(-2px);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 0.75rem;
+        }
+
+        .quick-btn {
+            padding: 0.5rem 1rem;
+            background: var(--accent-light);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--text);
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .quick-btn:hover {
+            background: var(--secondary);
+            border-color: var(--accent);
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-muted);
+        }
+
+        .loading-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .loading-dots span {
+            width: 8px;
+            height: 8px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            height: 100%;
+            min-height: 300px;
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .empty-state h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+        }
+
+        /* Settings Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--secondary);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+        }
+
+        .modal-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-header h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.25rem;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: var(--text);
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: var(--primary);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .form-group input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .form-hint {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #d63850;
+        }
+
+        .btn-secondary {
+            background: var(--accent-light);
+            color: var(--text);
+        }
+
+        .btn-secondary:hover {
+            background: var(--secondary);
+        }
+
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .alert {
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+        }
+
+        .alert-success {
+            background: rgba(0, 210, 106, 0.2);
+            border: 1px solid var(--success);
+            color: var(--success);
+        }
+
+        .alert-error {
+            background: rgba(220, 53, 69, 0.2);
+            border: 1px solid var(--error);
+            color: var(--error);
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-light);
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 72px;
+                height: calc(100vh - 72px);
+                z-index: 100;
+                width: 280px;
+            }
+            
+            .sidebar.collapsed {
+                left: -280px;
+            }
+            
+            .sidebar-toggle {
+                display: flex;
+            }
+            
+            .message-content {
+                max-width: 90%;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .sidebar-toggle {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <img src="/static/logo.png" alt="ZJClaw" style="height: 40px; width: 40px; border-radius: 8px;">
+            <div class="logo-text">ZJ<span>Claw</span></div>
+        </div>
+        <div class="header-actions">
+            <span class="model-badge" id="modelBadge">未配置</span>
+            <button class="header-btn" onclick="openSettings()">
+                <span>⚙️</span>
+                <span>设置</span>
+            </button>
+            <div class="status-badge">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">连接中...</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <aside class="sidebar">
+            <div class="sidebar-scroll">
+                <div class="menu-section">
+                    <div class="menu-title expanded" onclick="toggleMenu(this)">业务</div>
+                    <div class="menu-items show">
+                        <div class="menu-item" data-skill="recruitment">
+                            <div class="menu-item-name">商业招商</div>
+                            <div class="menu-item-desc">品牌定位、租户评估、招商谈判</div>
+                        </div>
+                        <div class="menu-item" data-skill="operations">
+                            <div class="menu-item-name">商业运营</div>
+                            <div class="menu-item-desc">运营标准、巡场管理，经营分析</div>
+                        </div>
+                        <div class="menu-item" data-skill="marketing">
+                            <div class="menu-item-name">数字营销</div>
+                            <div class="menu-item-desc">私域运营、社媒营销、会员管理</div>
+                        </div>
+                        <div class="menu-item" data-skill="engineering">
+                            <div class="menu-item-name">工程物管</div>
+                            <div class="menu-item-desc">设备管理、安全管理、能耗管控</div>
+                        </div>
+                        <div class="menu-item" data-skill="finance">
+                            <div class="menu-item-name">财务管理</div>
+                            <div class="menu-item-desc">预算管理，成本分析、收益管理</div>
+                        </div>
+                        <div class="menu-item" data-skill="hr">
+                            <div class="menu-item-name">人事行政</div>
+                            <div class="menu-item-desc">招聘培训、绩效考核、薪酬管理</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="menu-section">
+                    <div class="menu-title expanded" onclick="toggleMenu(this)">配置</div>
+                    <div class="menu-items show">
+                        <div class="menu-item" onclick="openSettings()">
+                            <div class="menu-item-name">⚙️ AI 设置</div>
+                            <div class="menu-item-desc">配置模型和 API</div>
+                        </div>
+                        <div class="menu-item" onclick="openWorkspaceSettings()">
+                            <div class="menu-item-name">📁 工作区设置</div>
+                            <div class="menu-item-desc" id="workspaceDesc">选择安全沙箱目录</div>
+                        </div>
+                        <div class="menu-item" onclick="clearChat()">
+                            <div class="menu-item-name">🗑️ 清除对话</div>
+                            <div class="menu-item-desc">清空聊天记录</div>
+                        </div>
+                        <div class="menu-item" onclick="window.open('https://platform.minimaxi.com', '_blank')">
+                            <div class="menu-item-name">🔑 获取 API Key</div>
+                            <div class="menu-item-desc">MiniMax 开放平台</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="menu-section">
+                    <div class="menu-title expanded" onclick="toggleMenu(this)">技能</div>
+                    <div class="menu-items show" id="skillsMenu">
+                        <div class="menu-item" onclick="showSkills()">
+                            <div class="menu-item-name">🛠️ 已安装技能</div>
+                            <div class="menu-item-desc">查看所有技能</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="menu-section">
+                    <div class="menu-title" onclick="toggleMenu(this)">系统</div>
+                    <div class="menu-items">
+                        <div class="menu-item" onclick="showHelp()">
+                            <div class="menu-item-name">📖 帮助</div>
+                            <div class="menu-item-desc">使用指南和常见问题</div>
+                        </div>
+                        <div class="menu-item" onclick="showVersion()">
+                            <div class="menu-item-name">ℹ️ 版本</div>
+                            <div class="menu-item-desc">当前版本信息</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <section class="chat-area">
+            <div class="chat-header">
+                <div class="chat-title">
+                    <img src="/static/logo.png" alt="ZJClaw" style="width: 28px; height: 28px; border-radius: 6px;">
+                    <span>ZJClaw 智能助手</span>
+                </div>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="empty-state" id="emptyState">
+                    <div class="empty-state-icon"><img src="/static/logo.png" alt="ZJClaw" style="width: 64px; height: 64px; border-radius: 12px;"></div>
+                    <h3>欢迎使用 ZJClaw</h3>
+                    <p>专业的商业管理智能助手，请输入您的问题</p>
+                    <p style="margin-top: 1rem; color: var(--warning);">首次使用请先在右上角设置中配置 API Key</p>
+                </div>
+            </div>
+            <div class="chat-input-area">
+                <form class="chat-input-form" id="chatForm">
+                    <div class="input-wrapper">
+                        <textarea 
+                            class="chat-input" 
+                            id="messageInput" 
+                            placeholder="输入您的商业管理问题..."
+                            rows="1"
+                        ></textarea>
+                    </div>
+                    <button type="submit" class="send-btn" id="sendBtn">
+                        <span>发送</span>
+                        <span>→</span>
+                    </button>
+                </form>
+                <div class="quick-actions">
+                    <button class="quick-btn" data-msg="帮我制定一份年度招商计划">招商计划</button>
+                    <button class="quick-btn" data-msg="分析本月运营数据报告">运营分析</button>
+                    <button class="quick-btn" data-msg="策划一场会员营销活动">营销活动</button>
+                    <button class="quick-btn" data-msg="审核装修施工方案">工程审核</button>
+                    <button class="quick-btn" data-msg="编制年度财务预算">财务预算</button>
+                    <button class="quick-btn" data-msg="设计绩效考核方案">绩效考核</button>
+                </div>
+            </div>
+        </section>
+        
+        <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">◀</button>
+    </main>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>⚙️ 设置</h2>
+                <button class="modal-close" onclick="closeSettings()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="settingsAlert"></div>
+                
+                <div class="form-group">
+                    <label for="providerSelect">AI 提供商</label>
+                    <select id="providerSelect" onchange="onProviderChange()">
+                        <option value="">请选择...</option>
+                        <option value="minimax">MiniMax</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="anthropic">Anthropic</option>
+                        <option value="deepseek">DeepSeek</option>
+                        <option value="zhipu">智谱 AI</option>
+                        <option value="dashscope">阿里云百炼</option>
+                        <option value="openrouter">OpenRouter</option>
+                        <option value="ollama">Ollama (本地)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="modelSelect">模型</label>
+                    <select id="modelSelect">
+                        <option value="">请先选择提供商</option>
+                    </select>
+                    <div class="form-hint" id="modelHint"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="apiKeyInput">API Key</label>
+                    <input type="password" id="apiKeyInput" placeholder="输入您的 API Key">
+                    <div class="form-hint">API Key 将在本地保存，不会上传到任何服务器</div>
+                </div>
+
+                <div class="form-group" id="apiBaseGroup" style="display: none;">
+                    <label for="apiBaseInput">API Base URL (可选)</label>
+                    <input type="text" id="apiBaseInput" placeholder="如: https://api.minimaxi.com/v1">
+                    <div class="form-hint">大多数情况不需要填写，使用默认值即可</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeSettings()">取消</button>
+                <button class="btn btn-primary" onclick="saveSettings()">保存设置</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="workspaceModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>📁 工作区设置</h2>
+                <button class="modal-close" onclick="closeWorkspaceSettings()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="workspaceAlert"></div>
+                
+                <div class="workspace-info" style="background: var(--accent-light); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <span style="color: var(--warning);">⚠️</span>
+                        <strong>安全沙箱模式</strong>
+                    </div>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);">
+                        启用工作区后，智能体的所有文件操作将被限制在指定目录内，确保数据安全。
+                    </p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="workspacePath">工作区目录</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="workspacePath" placeholder="选择或输入文件夹路径" style="flex: 1;">
+                        <button class="btn btn-secondary" id="browseBtn" onclick="selectWorkspaceFolder()">📂 选择文件夹</button>
+                    </div>
+                    <div class="form-hint" id="browseHint">智能体将在此目录内进行所有文件读写操作</div>
+                    <input type="file" id="folderPicker" webkitdirectory multiple style="display: none;" onchange="handleFolderSelect(this.files)">
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="sandboxEnabled" checked>
+                        <span style="margin-left: 0.5rem;">启用安全沙箱</span>
+                    </label>
+                    <div class="form-hint">启用后，智能体无法访问工作区外的任何文件</div>
+                </div>
+                
+                <div id="workspaceStatus" style="margin-top: 1rem; padding: 0.75rem; border-radius: 6px; background: var(--secondary); display: none;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span id="workspaceStatusIcon"></span>
+                        <span id="workspaceStatusText"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="resetWorkspace()">恢复默认</button>
+                <button class="btn btn-primary" onclick="saveWorkspace()">保存设置</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Model configurations
+        const modelConfigs = {
+            minimax: {
+                models: [
+                    { id: 'MiniMax-M2.7', name: 'MiniMax-M2.7 (推荐)' },
+                    { id: 'MiniMax-M2.5', name: 'MiniMax-M2.5' },
+                    { id: 'abab6.5s-chat', name: 'abab6.5s-chat' },
+                    { id: 'abab6.5g-chat', name: 'abab6.5g-chat' },
+                    { id: 'MiniMax-Text-01', name: 'MiniMax-Text-01' },
+                ],
+                defaultBase: 'https://api.minimaxi.com/v1',
+                hint: 'API Key 获取: https://platform.minimaxi.com'
+            },
+            openai: {
+                models: [
+                    { id: 'gpt-4o', name: 'GPT-4o' },
+                    { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
+                    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
+                    { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo' },
+                ],
+                defaultBase: 'https://api.openai.com/v1',
+                hint: '从 https://platform.openai.com 获取 API Key'
+            },
+            anthropic: {
+                models: [
+                    { id: 'claude-opus-4-5', name: 'Claude Opus 4.5' },
+                    { id: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5' },
+                    { id: 'claude-haiku-3-5', name: 'Claude Haiku 3.5' },
+                ],
+                defaultBase: 'https://api.anthropic.com/v1',
+                hint: '从 https://console.anthropic.com 获取 API Key'
+            },
+            deepseek: {
+                models: [
+                    { id: 'deepseek-chat', name: 'DeepSeek Chat' },
+                    { id: 'deepseek-coder', name: 'DeepSeek Coder' },
+                ],
+                defaultBase: 'https://api.deepseek.com/v1',
+                hint: '从 https://platform.deepseek.com 获取 API Key'
+            },
+            zhipu: {
+                models: [
+                    { id: 'glm-4', name: 'GLM-4' },
+                    { id: 'glm-4-flash', name: 'GLM-4-Flash' },
+                    { id: 'glm-3-turbo', name: 'GLM-3-Turbo' },
+                ],
+                defaultBase: 'https://open.bigmodel.cn/api/paas/v4',
+                hint: '从 https://open.bigmodel.cn 获取 API Key'
+            },
+            dashscope: {
+                models: [
+                    { id: 'qwen-plus', name: '通义千问 Plus' },
+                    { id: 'qwen-turbo', name: '通义千问 Turbo' },
+                    { id: 'qwen-max', name: '通义千问 Max' },
+                ],
+                defaultBase: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+                hint: '从 https://dashscope.console.aliyun.com 获取 API Key'
+            },
+            openrouter: {
+                models: [
+                    { id: 'anthropic/claude-opus-4-5', name: 'Claude Opus (OpenRouter)' },
+                    { id: 'anthropic/claude-sonnet-4-5', name: 'Claude Sonnet (OpenRouter)' },
+                    { id: 'openai/gpt-4o', name: 'GPT-4o (OpenRouter)' },
+                    { id: 'google/gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
+                    { id: 'deepseek/deepseek-chat-v3-0324', name: 'DeepSeek V3 (OpenRouter)' },
+                ],
+                defaultBase: 'https://openrouter.ai/api/v1',
+                hint: '从 https://openrouter.ai/keys 获取 API Key'
+            },
+            ollama: {
+                models: [
+                    { id: 'llama3', name: 'Llama 3' },
+                    { id: 'llama3.1', name: 'Llama 3.1' },
+                    { id: 'qwen2.5', name: 'Qwen 2.5' },
+                    { id: 'deepseek-v2', name: 'DeepSeek V2' },
+                ],
+                defaultBase: 'http://localhost:11434/v1',
+                hint: '确保 Ollama 已运行，默认地址 http://localhost:11434'
+            }
+        };
+
+        const chatMessages = document.getElementById('chatMessages');
+        const chatForm = document.getElementById('chatForm');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const emptyState = document.getElementById('emptyState');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const modelBadge = document.getElementById('modelBadge');
+        const settingsModal = document.getElementById('settingsModal');
+        const settingsAlert = document.getElementById('settingsAlert');
+
+        let isLoading = false;
+        let currentConfig = { provider: '', model: '', apiKey: '', apiBase: '' };
+
+        // Load settings on page load
+        async function loadSettings() {
+            try {
+                const response = await fetch('/api/config');
+                const data = await response.json();
+                if (data.config) {
+                    currentConfig = data.config;
+                    if (currentConfig.provider) {
+                        document.getElementById('providerSelect').value = currentConfig.provider;
+                        onProviderChange();
+                        document.getElementById('modelSelect').value = currentConfig.model || '';
+                        document.getElementById('apiKeyInput').value = currentConfig.apiKey || '';
+                        document.getElementById('apiBaseInput').value = currentConfig.apiBase || '';
+                    }
+                    if (currentConfig.model) {
+                        modelBadge.textContent = currentConfig.model.split('/').pop();
+                    }
+                }
+                
+                const wsResponse = await fetch('/api/workspace');
+                const wsData = await wsResponse.json();
+                const desc = document.getElementById('workspaceDesc');
+                if (wsData.sandbox_enabled) {
+                    const shortPath = wsData.workspace.length > 30 
+                        ? '...' + wsData.workspace.slice(-27) 
+                        : wsData.workspace;
+                    desc.textContent = shortPath;
+                    desc.style.color = 'var(--success)';
+                } else {
+                    desc.textContent = '使用默认工作区';
+                    desc.style.color = 'var(--text-muted)';
+                }
+            } catch (e) {
+                console.log('Failed to load settings');
+            }
+        }
+
+        function onProviderChange() {
+            const provider = document.getElementById('providerSelect').value;
+            const modelSelect = document.getElementById('modelSelect');
+            const modelHint = document.getElementById('modelHint');
+            const apiBaseGroup = document.getElementById('apiBaseGroup');
+            
+            modelSelect.innerHTML = '<option value="">请选择...</option>';
+            
+            if (provider && modelConfigs[provider]) {
+                const config = modelConfigs[provider];
+                config.models.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.id;
+                    opt.textContent = m.name;
+                    modelSelect.appendChild(opt);
+                });
+                modelHint.textContent = config.hint;
+                
+                if (provider === 'ollama' || provider === 'custom') {
+                    apiBaseGroup.style.display = 'block';
+                } else {
+                    apiBaseGroup.style.display = 'none';
+                }
+            } else {
+                modelHint.textContent = '';
+                apiBaseGroup.style.display = 'none';
+            }
+        }
+
+        async function saveSettings() {
+            const provider = document.getElementById('providerSelect').value;
+            const model = document.getElementById('modelSelect').value;
+            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            const apiBase = document.getElementById('apiBaseInput').value.trim();
+
+            if (!provider) {
+                showAlert('请选择 AI 提供商', 'error');
+                return;
+            }
+            if (!model) {
+                showAlert('请选择模型', 'error');
+                return;
+            }
+            if (!apiKey) {
+                showAlert('请输入 API Key', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ provider, model, apiKey, apiBase })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentConfig = { provider, model, apiKey, apiBase };
+                    modelBadge.textContent = model.split('/').pop();
+                    showAlert('设置已保存', 'success');
+                    setTimeout(closeSettings, 1000);
+                } else {
+                    showAlert(data.error || '保存失败', 'error');
+                }
+            } catch (e) {
+                showAlert('保存失败: ' + e.message, 'error');
+            }
+        }
+
+        function showAlert(message, type) {
+            settingsAlert.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+        }
+
+        function openSettings() {
+            settingsAlert.innerHTML = '';
+            settingsModal.classList.add('active');
+        }
+
+        function closeSettings() {
+            settingsModal.classList.remove('active');
+        }
+
+        let workspaceModal = document.getElementById('workspaceModal');
+        let workspaceAlert = document.getElementById('workspaceAlert');
+
+        function openWorkspaceSettings() {
+            workspaceAlert.innerHTML = '';
+            loadWorkspaceSettings();
+            workspaceModal.classList.add('active');
+        }
+
+        function closeWorkspaceSettings() {
+            workspaceModal.classList.remove('active');
+        }
+
+        async function loadWorkspaceSettings() {
+            try {
+                const response = await fetch('/api/config');
+                const data = await response.json();
+                
+                if (data.config) {
+                    document.getElementById('workspacePath').value = data.config.workspace || '';
+                    document.getElementById('sandboxEnabled').checked = data.config.sandbox_enabled !== false;
+                    
+                    const desc = document.getElementById('workspaceDesc');
+                    if (data.config.sandbox_enabled) {
+                        desc.textContent = data.config.workspace;
+                        desc.style.color = 'var(--success)';
+                    } else {
+                        desc.textContent = '使用默认工作区';
+                        desc.style.color = 'var(--text-muted)';
+                    }
+                    
+                    await validateCurrentWorkspace(data.config.workspace);
+                }
+            } catch (e) {
+                console.log('Failed to load workspace settings');
+            }
+        }
+
+        async function validateCurrentWorkspace(path) {
+            const statusEl = document.getElementById('workspaceStatus');
+            const statusIcon = document.getElementById('workspaceStatusIcon');
+            const statusText = document.getElementById('workspaceStatusText');
+            
+            if (!path) {
+                statusEl.style.display = 'none';
+                return;
+            }
+            
+            statusEl.style.display = 'block';
+            statusIcon.textContent = '⏳';
+            statusText.textContent = '验证中...';
+            statusEl.style.background = 'var(--secondary)';
+            
+            try {
+                const response = await fetch('/api/workspace/validate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ workspace: path })
+                });
+                const data = await response.json();
+                
+                if (data.valid) {
+                    statusIcon.textContent = '✅';
+                    statusText.textContent = '路径有效，可读写';
+                    statusEl.style.background = 'rgba(0, 210, 106, 0.2)';
+                } else {
+                    statusIcon.textContent = '❌';
+                    statusText.textContent = data.error || '路径无效';
+                    statusEl.style.background = 'rgba(220, 53, 69, 0.2)';
+                }
+            } catch (e) {
+                statusIcon.textContent = '❌';
+                statusText.textContent = '验证失败';
+                statusEl.style.background = 'rgba(220, 53, 69, 0.2)';
+            }
+        }
+
+        async function selectWorkspaceFolder() {
+            const pathInput = document.getElementById('workspacePath');
+            const browseHint = document.getElementById('browseHint');
+            
+            // Try modern File System Access API (Chrome/Edge)
+            if ('showDirectoryPicker' in window) {
+                try {
+                    const dirHandle = await window.showDirectoryPicker();
+                    browseHint.innerHTML = `<span style="color: var(--success);">已选择文件夹</span>`;
+                    
+                    // File System Access API doesn't give us the full path
+                    // Use a prompt to get the path from user
+                    let suggestedPath = '';
+                    if (navigator.platform.includes('Win')) {
+                        suggestedPath = 'D:\\';
+                    } else {
+                        suggestedPath = '/home/user/';
+                    }
+                    
+                    const fullPath = prompt('请输入该文件夹的完整路径：\n（例如：' + suggestedPath + '项目文件夹）', suggestedPath);
+                    if (fullPath) {
+                        pathInput.value = fullPath;
+                        await validateCurrentWorkspace(fullPath);
+                    }
+                    return;
+                } catch (err) {
+                    if (err.name === 'AbortError') {
+                        return;
+                    }
+                    console.log('showDirectoryPicker error:', err);
+                }
+            }
+            
+            // Fallback: use webkitdirectory input
+            browseHint.innerHTML = `<span style="color: var(--warning);">请在下方手动输入完整路径</span>`;
+            pathInput.focus();
+            pathInput.placeholder = '请输入文件夹的完整路径，如：D:\\项目文档';
+        }
+
+        async function saveWorkspace() {
+            const workspacePath = document.getElementById('workspacePath').value.trim();
+            const sandboxEnabled = document.getElementById('sandboxEnabled').checked;
+            
+            if (sandboxEnabled && workspacePath) {
+                try {
+                    const validateResponse = await fetch('/api/workspace/validate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ workspace: workspacePath })
+                    });
+                    const validateData = await validateResponse.json();
+                    
+                    if (!validateData.valid) {
+                        workspaceAlert.innerHTML = `<div class="alert alert-error">${validateData.error}</div>`;
+                        return;
+                    }
+                } catch (e) {
+                    workspaceAlert.innerHTML = `<div class="alert alert-error">验证失败: ${e.message}</div>`;
+                    return;
+                }
+            }
+            
+            try {
+                const response = await fetch('/api/workspace', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        workspace: sandboxEnabled ? workspacePath : ''
+                    })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    const desc = document.getElementById('workspaceDesc');
+                    if (sandboxEnabled && workspacePath) {
+                        desc.textContent = workspacePath;
+                        desc.style.color = 'var(--success)';
+                        workspaceAlert.innerHTML = `<div class="alert alert-success">工作区设置已保存，沙箱已启用</div>`;
+                    } else {
+                        desc.textContent = '使用默认工作区';
+                        desc.style.color = 'var(--text-muted)';
+                        workspaceAlert.innerHTML = `<div class="alert alert-success">已恢复默认工作区</div>`;
+                    }
+                    setTimeout(closeWorkspaceSettings, 1500);
+                } else {
+                    workspaceAlert.innerHTML = `<div class="alert alert-error">${data.error || '保存失败'}</div>`;
+                }
+            } catch (e) {
+                workspaceAlert.innerHTML = `<div class="alert alert-error">保存失败: ${e.message}</div>`;
+            }
+        }
+
+        async function resetWorkspace() {
+            document.getElementById('workspacePath').value = '';
+            document.getElementById('sandboxEnabled').checked = false;
+            await validateCurrentWorkspace('');
+        }
+
+        function toggleMenu(titleElement) {
+            titleElement.classList.toggle('expanded');
+            const menuItems = titleElement.nextElementSibling;
+            menuItems.classList.toggle('show');
+        }
+
+        function clearChat() {
+            fetch('/api/clear', { method: 'POST' })
+                .then(() => {
+                    chatMessages.innerHTML = `
+                        <div class="empty-state" id="emptyState">
+                            <div class="empty-state-icon"><img src="/static/logo.png" alt="ZJClaw" style="width: 64px; height: 64px; border-radius: 12px;"></div>
+                            <h3>欢迎使用 ZJClaw</h3>
+                            <p>专业的商业管理智能助手，请输入您的问题</p>
+                        </div>
+                    `;
+                });
+        }
+
+        function showHelp() {
+            document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
+            chatMessages.innerHTML = `
+                <div class="help-content" style="padding: 2rem; max-width: 800px; margin: 0 auto;">
+                    <div style="text-align: center; margin-bottom: 2rem;">
+                        <img src="/static/logo.png" alt="ZJClaw" style="width: 80px; height: 80px; margin-bottom: 1rem;">
+                        <h2 style="color: var(--accent); margin-bottom: 0.5rem;">ZJClaw 商业管理智能助手</h2>
+                        <p style="color: var(--text-muted);">专业的商业地产智能化管理平台</p>
+                    </div>
+                    
+                    <div class="help-section" style="background: var(--accent-light); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem;">
+                        <h3 style="color: var(--accent); margin-bottom: 1rem;">💼 关于我们</h3>
+                        <p style="line-height: 1.8; margin-bottom: 0.5rem;"><strong>公司：</strong>苏州涣葆宗靖商业运营管理有限公司（宗靖商管）</p>
+                        <p style="line-height: 1.8; margin-bottom: 0.5rem;"><strong>定位：</strong>城市商业服务运营商创新者</p>
+                        <p style="line-height: 1.8;"><strong>使命：</strong>数字化技术+精细化运营，为商业资产注入可持续活力</p>
+                    </div>
+                    
+                    <div class="help-section" style="background: var(--accent-light); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem;">
+                        <h3 style="color: var(--accent); margin-bottom: 1rem;">🏢 在管项目</h3>
+                        <ul style="line-height: 2; padding-left: 1.5rem;">
+                            <li><strong>苏州国际家居建材中心</strong>（21万㎡）- 苏州最大家居商场</li>
+                            <li><strong>中翔时尚广场</strong>（7.2万㎡）- 商业金融办公教育餐饮一体</li>
+                            <li><strong>中翔黄埭广场</strong>（5.36万㎡）- 全生活商业矩阵</li>
+                            <li><strong>甪直中翔广场</strong>（4.2万㎡）- 区域性商业地标</li>
+                            <li><strong>周庄中翔广场</strong>（6.6万㎡）- 辐射50万人口</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="help-section" style="background: var(--accent-light); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem;">
+                        <h3 style="color: var(--accent); margin-bottom: 1rem;">🚀 六大核心业务</h3>
+                        <ul style="line-height: 2; padding-left: 1.5rem;">
+                            <li><strong>商业招商</strong>：品牌定位、租户评估、招商谈判、合同管理</li>
+                            <li><strong>商业运营</strong>：运营标准、巡场管理、客户服务、经营分析</li>
+                            <li><strong>数字营销</strong>：私域运营、社媒营销、数据分析、会员管理</li>
+                            <li><strong>工程物管</strong>：设备管理、安全管理、能耗管控、装修审批</li>
+                            <li><strong>财务管理</strong>：预算管理、成本分析、收入管理、风险控制</li>
+                            <li><strong>人事行政</strong>：招聘培训、绩效考核、薪酬管理、行政事务</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="help-section" style="background: var(--accent-light); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem;">
+                        <h3 style="color: var(--accent); margin-bottom: 1rem;">📖 快速开始</h3>
+                        <ol style="line-height: 2; padding-left: 1.5rem;">
+                            <li><strong>配置 API</strong>：侧边栏「配置」→「AI 设置」配置 MiniMax API Key</li>
+                            <li><strong>设置工作区</strong>：「配置」→「工作区设置」选择安全沙箱目录</li>
+                            <li><strong>选择业务</strong>：点击「业务」下不同模块切换业务场景</li>
+                            <li><strong>开始对话</strong>：底部输入框，Enter 发送，Shift+Enter 换行</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="help-section" style="background: var(--accent-light); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem;">
+                        <h3 style="color: var(--accent); margin-bottom: 1rem;">💡 使用技巧</h3>
+                        <ul style="line-height: 2; padding-left: 1.5rem;">
+                            <li>工作问题直接问，助手会从商业地产视角分析</li>
+                            <li>可要求生成招商报告、运营分析、营销方案等</li>
+                            <li>启用工作区沙箱，确保文件操作安全</li>
+                            <li>查看「技能」菜单了解已安装的功能扩展</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="help-section" style="background: var(--accent-light); border-radius: 12px; padding: 1.5rem;">
+                        <h3 style="color: var(--accent); margin-bottom: 1rem;">❓ 常见问题</h3>
+                        <div style="line-height: 1.8;">
+                            <p style="margin-bottom: 0.5rem;"><strong>Q: API Key 如何获取？</strong></p>
+                            <p style="color: var(--text-muted); margin-bottom: 1rem;">A: 访问 <a href="https://platform.minimaxi.com" target="_blank" style="color: var(--accent);">MiniMax 开放平台</a> 注册并获取</p>
+                            
+                            <p style="margin-bottom: 0.5rem;"><strong>Q: 支持哪些大模型？</strong></p>
+                            <p style="color: var(--text-muted); margin-bottom: 1rem;">A: 支持 MiniMax、OpenAI、Anthropic、DeepSeek、智谱AI、阿里云百炼等</p>
+                            
+                            <p style="margin-bottom: 0.5rem;"><strong>Q: 数据安全吗？</strong></p>
+                            <p style="color: var(--text-muted); margin-bottom: 1rem;">A: 所有配置和对话数据仅保存在本地</p>
+                            
+                            <p style="margin-bottom: 0.5rem;"><strong>Q: 工作区沙箱是什么？</strong></p>
+                            <p style="color: var(--text-muted);">A: 启用后，智能体只能在指定目录内操作文件，确保安全</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showVersion() {
+            document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
+            chatMessages.innerHTML = `
+                <div class="version-content" style="padding: 2rem; max-width: 600px; margin: 0 auto;">
+                    <div style="text-align: center; margin-bottom: 2rem;">
+                        <img src="/static/logo.png" alt="ZJClaw" style="width: 100px; height: 100px; margin-bottom: 1rem;">
+                        <h2 style="color: var(--accent); margin-bottom: 0.5rem;">ZJClaw</h2>
+                        <p style="font-size: 1.5rem; color: var(--text-muted);">商业管理智能助手</p>
+                    </div>
+                    
+                    <div style="background: var(--accent-light); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem;">
+                        <h3 style="color: var(--accent); margin-bottom: 1rem;">版本信息</h3>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr style="border-bottom: 1px solid var(--border);">
+                                <td style="padding: 0.75rem 0; color: var(--text-muted);">当前版本</td>
+                                <td style="padding: 0.75rem 0; text-align: right; font-weight: 600;" id="currentVersion">v0.1.5</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid var(--border);">
+                                <td style="padding: 0.75rem 0; color: var(--text-muted);">构建日期</td>
+                                <td style="padding: 0.75rem 0; text-align: right;">2026-03-21</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem 0; color: var(--text-muted);">状态</td>
+                                <td style="padding: 0.75rem 0; text-align: right;"><span style="color: var(--success);">● 稳定版</span></td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div id="updateNotice" style="background: var(--accent-light); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; display: none;">
+                        <h3 style="color: var(--success); margin-bottom: 1rem;">🎉 发现新版本</h3>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr style="border-bottom: 1px solid var(--border);">
+                                <td style="padding: 0.5rem 0; color: var(--text-muted);">最新版本</td>
+                                <td style="padding: 0.5rem 0; text-align: right; font-weight: 600;" id="latestVersion"></td>
+                            </tr>
+                        </table>
+                        <p id="releaseNotes" style="margin: 1rem 0; font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;"></p>
+                        <button onclick="performUpdate()" style="background: var(--success); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 600; width: 100%;">🚀 一键更新</button>
+                    </div>
+                    
+                    <div id="updateCheckBtn" style="margin-bottom: 1rem;">
+                        <button onclick="checkForUpdates()" style="background: var(--secondary); color: var(--text); border: 1px solid var(--border); padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; width: 100%;">🔄 检查更新</button>
+                    </div>
+                    
+                    <div id="updateStatus" style="text-align: center; padding: 1rem; display: none;">
+                        <span style="color: var(--text-muted);">检查中...</span>
+                    </div>
+                    
+                    <div style="background: var(--accent-light); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem;">
+                        <h3 style="color: var(--accent); margin-bottom: 1rem;">开发者信息</h3>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr style="border-bottom: 1px solid var(--border);">
+                                <td style="padding: 0.75rem 0; color: var(--text-muted);">开发公司</td>
+                                <td style="padding: 0.75rem 0; text-align: right;">苏州涣葆宗靖商业运营管理有限公司</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid var(--border);">
+                                <td style="padding: 0.75rem 0; color: var(--text-muted);">负责人</td>
+                                <td style="padding: 0.75rem 0; text-align: right;">兴哥</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem 0; color: var(--text-muted);">官方网站</td>
+                                <td style="padding: 0.75rem 0; text-align: right;">www.zjclaw.com</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div style="background: var(--accent-light); border-radius: 12px; padding: 1.5rem;">
+                        <h3 style="color: var(--accent); margin-bottom: 1rem;">技术栈</h3>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                            <span style="background: var(--secondary); padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.875rem;">Python</span>
+                            <span style="background: var(--secondary); padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.875rem;">Flask</span>
+                            <span style="background: var(--secondary); padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.875rem;">LiteLLM</span>
+                            <span style="background: var(--secondary); padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.875rem;">MiniMax API</span>
+                            <span style="background: var(--secondary); padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.875rem;">WebUI</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        async function checkForUpdates() {
+            const updateStatus = document.getElementById('updateStatus');
+            const updateNotice = document.getElementById('updateNotice');
+            const updateCheckBtn = document.getElementById('updateCheckBtn');
+            
+            updateStatus.style.display = 'block';
+            updateStatus.innerHTML = '<span style="color: var(--text-muted);">正在检查更新...</span>';
+            
+            try {
+                const response = await fetch('/api/update/check');
+                const data = await response.json();
+                
+                updateStatus.style.display = 'none';
+                
+                if (data.has_update) {
+                    updateNotice.style.display = 'block';
+                    document.getElementById('latestVersion').textContent = 'v' + data.latest_version;
+                    document.getElementById('releaseNotes').textContent = data.release_notes || '点击下方按钮进行更新';
+                    updateCheckBtn.style.display = 'none';
+                } else {
+                    updateStatus.style.display = 'block';
+                    updateStatus.innerHTML = '<span style="color: var(--success);">✅ 当前已是最新版本</span>';
+                    setTimeout(() => { updateStatus.style.display = 'none'; }, 3000);
+                }
+            } catch (e) {
+                updateStatus.style.display = 'block';
+                updateStatus.innerHTML = '<span style="color: var(--error);">检查更新失败，请稍后重试</span>';
+            }
+        }
+        
+        async function performUpdate() {
+            if (!confirm('确定要更新到最新版本吗？更新过程中请勿关闭程序。')) {
+                return;
+            }
+            
+            const updateStatus = document.getElementById('updateStatus');
+            updateStatus.style.display = 'block';
+            updateStatus.innerHTML = '<span style="color: var(--warning);">正在下载更新...</span>';
+            
+            try {
+                const response = await fetch('/api/update/perform', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateStatus.innerHTML = '<span style="color: var(--success);">✅ 更新成功！请手动重启应用程序以应用更新。</span>';
+                } else {
+                    updateStatus.innerHTML = '<span style="color: var(--error);">❌ 更新失败：' + data.message + '</span>';
+                }
+            } catch (e) {
+                updateStatus.innerHTML = '<span style="color: var(--error);">❌ 更新失败：' + e.message + '</span>';
+            }
+        }
+
+        async function showSkills() {
+            document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
+            
+            try {
+                const response = await fetch('/api/skills');
+                const data = await response.json();
+                
+                if (data.skills && data.skills.length > 0) {
+                    const skillsBySource = {
+                        builtin: { name: '内置技能', skills: [] },
+                        system: { name: '系统技能', skills: [] },
+                        user: { name: '用户技能', skills: [] }
+                    };
+                    
+                    data.skills.forEach(skill => {
+                        const source = skill.source || 'builtin';
+                        if (!skillsBySource[source]) {
+                            skillsBySource[source] = { name: source + '技能', skills: [] };
+                        }
+                        skillsBySource[source].skills.push(skill);
+                    });
+                    
+                    let html = `
+                        <div style="padding: 2rem; max-width: 800px; margin: 0 auto;">
+                            <div style="text-align: center; margin-bottom: 2rem;">
+                                <img src="/static/logo.png" alt="ZJClaw" style="width: 60px; height: 60px; margin-bottom: 1rem;">
+                                <h2 style="color: var(--accent);">已安装技能</h2>
+                                <p style="color: var(--text-muted);">共 ${data.skills.length} 个技能</p>
+                            </div>
+                    `;
+                    
+                    for (const [source, info] of Object.entries(skillsBySource)) {
+                        if (info.skills && info.skills.length > 0) {
+                            html += `
+                                <div style="background: var(--accent-light); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem;">
+                                    <h3 style="color: var(--accent); margin-bottom: 1rem;">${info.name} (${info.skills.length})</h3>
+                                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            `;
+                            info.skills.forEach(skill => {
+                                const name = skill.name || skill.slug || 'Unknown';
+                                const desc = skill.description || '暂无描述';
+                                html += `
+                                        <div style="background: var(--secondary); padding: 1rem; border-radius: 8px;">
+                                            <div style="font-weight: 600; margin-bottom: 0.25rem;">${name}</div>
+                                            <div style="font-size: 0.85rem; color: var(--text-muted);">${desc}</div>
+                                        </div>
+                                `;
+                            });
+                            html += `</div></div>`;
+                        }
+                    }
+                    
+                    html += `</div>`;
+                    chatMessages.innerHTML = html;
+                } else {
+                    chatMessages.innerHTML = `
+                        <div style="padding: 2rem; text-align: center;">
+                            <p style="color: var(--text-muted);">暂无可用技能</p>
+                        </div>
+                    `;
+                }
+            } catch (e) {
+                chatMessages.innerHTML = `
+                    <div style="padding: 2rem; text-align: center;">
+                        <p style="color: var(--error);">加载技能列表失败</p>
+                    </div>
+                `;
+            }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            const toggle = document.getElementById('sidebarToggle');
+            sidebar.classList.toggle('collapsed');
+            if (sidebar.classList.contains('collapsed')) {
+                toggle.innerHTML = '▶';
+            } else {
+                toggle.innerHTML = '◀';
+            }
+        }
+
+        // Close modal on outside click
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) {
+                closeSettings();
+            }
+        });
+
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+        });
+
+        // Enter to send, Shift+Enter for newline
+        messageInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (messageInput.value.trim()) {
+                    chatForm.dispatchEvent(new Event('submit'));
+                }
+            }
+        });
+
+        async function checkStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                if (data.status === 'ready') {
+                    statusDot.classList.remove('offline', 'config-error');
+                    statusText.textContent = '就绪';
+                    if (data.model) {
+                        modelBadge.textContent = data.model.split('/').pop();
+                    }
+                } else if (data.status === 'not_configured') {
+                    statusDot.classList.add('config-error');
+                    statusDot.classList.remove('offline');
+                    statusText.textContent = '未配置';
+                    modelBadge.textContent = '未配置';
+                } else {
+                    statusDot.classList.add('offline');
+                    statusDot.classList.remove('config-error');
+                    statusText.textContent = '离线';
+                }
+            } catch (e) {
+                statusDot.classList.add('offline');
+                statusText.textContent = '离线';
+            }
+        }
+
+        async function sendMessage(message) {
+            if (isLoading || !message.trim()) return;
+            
+            if (!currentConfig.apiKey) {
+                addMessage('bot', '<div style="color: var(--warning);">请先在设置中配置 API Key</div>');
+                return;
+            }
+            
+            isLoading = true;
+            sendBtn.disabled = true;
+            emptyState.style.display = 'none';
+
+            addMessage('user', message);
+
+            const loadingMsg = addMessage('bot', '<div class="loading"><div class="loading-dots"><span></span><span></span><span></span></div><span>思考中...</span></div>');
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message })
+                });
+
+                const data = await response.json();
+                loadingMsg.remove();
+
+                if (data.error) {
+                    addMessage('bot', `<div style="color: var(--error);">错误: ${data.error}</div>`);
+                } else {
+                    addMessage('bot', formatMarkdown(data.response || data.message || '收到您的消息'));
+                }
+            } catch (e) {
+                loadingMsg.remove();
+                addMessage('bot', `<div style="color: var(--error);">网络错误: ${e.message}</div>`);
+            }
+
+            isLoading = false;
+            sendBtn.disabled = false;
+        }
+
+        function addMessage(role, content) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${role}`;
+            msgDiv.innerHTML = `
+                <div class="message-avatar">${role === 'bot' ? '<img src="/static/logo.png" style="width:100%;height:100%;border-radius:10px;">' : '👤'}</div>
+                <div class="message-content">${content}</div>
+            `;
+            chatMessages.appendChild(msgDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            return msgDiv;
+        }
+
+        function formatMarkdown(text) {
+            let html = text
+                .replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+                .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+                .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+                .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+                .replace(/^\- (.+)$/gm, '<li>$1</li>')
+                .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+                .replace(/\n/g, '<br>');
+            return html;
+        }
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const message = messageInput.value.trim();
+            if (message) {
+                messageInput.value = '';
+                messageInput.style.height = 'auto';
+                await sendMessage(message);
+            }
+        });
+
+        document.querySelectorAll('.menu-item[data-skill]').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+                
+                const skillNames = {
+                    recruitment: '商业招商',
+                    operations: '商业运营',
+                    marketing: '数字营销',
+                    engineering: '工程物管',
+                    finance: '财务管理',
+                    hr: '人事行政'
+                };
+                sendMessage(`我想使用${skillNames[item.dataset.skill]}技能，请提供相关帮助`);
+            });
+        });
+
+        document.querySelectorAll('.quick-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                sendMessage(btn.dataset.msg);
+            });
+        });
+
+        // Initialize
+        loadSettings();
+        checkStatus();
+        setInterval(checkStatus, 10000);
+    </script>
+</body>
+</html>

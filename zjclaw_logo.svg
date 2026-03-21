@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="200" height="200" fill="#1a1a2e" rx="20"/>
+  
+  <!-- Claw/Corporate mark stylized -->
+  <g fill="#e94560">
+    <!-- Main claw body -->
+    <path d="M100 30 L130 80 L120 80 L100 50 L80 80 L70 80 Z" fill="#e94560"/>
+    <path d="M60 90 L85 130 L75 130 L55 95 Z" fill="#e94560"/>
+    <path d="M75 95 L100 135 L90 135 L70 100 Z" fill="#e94560"/>
+    <path d="M95 100 L115 145 L105 145 L85 105 Z" fill="#e94560"/>
+    <path d="M115 105 L135 155 L125 155 L100 110 Z" fill="#e94560"/>
+    <path d="M135 110 L155 165 L145 165 L115 115 Z" fill="#e94560"/>
+  </g>
+  
+  <!-- Accent circles representing business/management -->
+  <circle cx="50" cy="160" r="8" fill="#0f3460"/>
+  <circle cx="75" cy="170" r="6" fill="#16213e"/>
+  <circle cx="100" cy="175" r="10" fill="#0f3460"/>
+  <circle cx="125" cy="168" r="7" fill="#16213e"/>
+  <circle cx="150" cy="158" r="9" fill="#0f3460"/>
+  
+  <!-- Text -->
+  <text x="100" y="195" font-family="Arial, sans-serif" font-size="14" fill="#ffffff" text-anchor="middle" font-weight="bold">ZJClaw</text>
+</svg>
