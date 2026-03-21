@@ -224,7 +224,7 @@ git clone https://github.com/martin202008/ZJClaw.git
 ## 技术支持
 
 - **项目地址**：https://github.com/martin202008/ZJClaw
-- **开发公司**：苏州涣葆宗靖商业运营管理有限公司
+- **开发公司**：宗靖商管
 
 ---
 
