@@ -11,52 +11,56 @@ REM 检查是否已有Python
 python --version >nul 2>&1
 if not errorlevel 1 (
     echo [OK] Python 已安装
-    goto :install_deps
+    echo.
+    goto :check_pip
 )
 
 echo [提示] 未检测到 Python，开始自动安装...
 echo.
 
 REM 下载Python安装包
-echo 正在下载 Python 安装包，请稍候...
+echo 正在下载 Python 3.12 安装包...
+echo.
+
 set "PYTHON_URL=https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe"
 set "PYTHON_EXE=%TEMP%\python-3.12.8-amd64.exe"
 
 powershell -Command "Invoke-WebRequest -Uri '%PYTHON_URL%' -OutFile '%PYTHON_EXE%'"
 
 if not exist "%PYTHON_EXE%" (
+    echo [错误] Python 下载失败！
     echo.
-    echo [错误] Python 下载失败
-    echo 请手动下载 Python: https://www.python.org/downloads/
+    echo 请检查网络连接，或手动下载 Python:
+    echo https://www.python.org/downloads/
     echo.
     pause
     exit /b 1
 )
 
-echo.
 echo [OK] Python 下载完成
 echo.
 
 REM 静默安装Python
-echo 正在安装 Python...
-echo 请在弹出的安装向导中点击"Install Now"...
+echo 正在安装 Python（需要管理员权限）...
+echo 安装过程可能需要1-3分钟，请耐心等待...
 echo.
 
-start /wait "" "%PYTHON_EXE%" /quiet InstallAllUsers=1 PrependPath=1
+start /wait mshta.exe "javascript:var sh=new ActiveXObject('shell.application');sh.ShellExecute('%PYTHON_EXE%','/quiet InstallAllUsers=1 PrependPath=1','runas');close();"
 
-REM 刷新环境变量
+timeout /t 30 /nobreak >nul
+
+REM 刷新环境变量并验证
 set PATH=C:\Python312;C:\Python312\Scripts;%PATH%
 
-REM 验证安装
-python --version >nul 2>&1
-if errorlevel 1 (
+for /f "delims=" %%i in ('where python 2^>nul') do set PYTHON_PATH=%%i
+
+if not defined PYTHON_PATH (
     echo.
-    echo [错误] Python 安装可能失败，请手动确认
+    echo [错误] Python 安装失败！
     echo.
-    echo 手动安装步骤：
-    echo 1. 打开: https://www.python.org/downloads/
-    echo 2. 下载 Python 3.12
-    echo 3. 运行安装包，勾选 "Add to PATH"
+    echo 请手动安装 Python:
+    echo 1. 下载: https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe
+    echo 2. 运行安装包，勾选 "Add to PATH"
     echo.
     pause
     exit /b 1
@@ -65,22 +69,33 @@ if errorlevel 1 (
 echo [OK] Python 安装成功
 del "%PYTHON_EXE%" 2>nul
 
-:install_deps
+:check_pip
+echo.
+echo 检查 pip...
+
+pip --version >nul 2>&1
+if errorlevel 1 (
+    echo.
+    echo [警告] pip 未检测到，尝试修复...
+    python -m ensurepip --upgrade
+)
+
 echo.
 echo ========================================
 echo   安装项目依赖
 echo ========================================
 echo.
 
-pip install -e . 
+pip install -e .
 
 if errorlevel 1 (
     echo.
-    echo [错误] 依赖安装失败
+    echo [错误] 依赖安装失败！
     pause
     exit /b 1
 )
 
+echo.
 echo [OK] 依赖安装完成
 echo.
 
