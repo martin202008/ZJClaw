@@ -29,8 +29,20 @@
 
 ## 快速开始
 
-### WebUI 启动
+### Windows 一键部署（推荐）
 
+1. 下载项目并解压
+2. 双击运行 `一键部署.bat`
+3. 浏览器访问 http://localhost:5000
+
+### 手动部署
+
+#### 1. 安装依赖
+```bash
+pip install -e .
+```
+
+#### 2. 启动服务
 ```bash
 cd webui
 python standalone_app.py
@@ -42,12 +54,6 @@ python standalone_app.py
 
 1. 首次使用请在「配置」→「AI 设置」中配置 MiniMax API Key
 2. 可选：在「配置」→「工作区设置」中设置安全沙箱目录
-
-### 安装依赖
-
-```bash
-pip install -e .
-```
 
 ## 系统技能
 
