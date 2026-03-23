@@ -22,13 +22,13 @@ echo 正在下载 Python 安装包，请稍候...
 set "PYTHON_URL=https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe"
 set "PYTHON_EXE=%TEMP%\python-3.12.8-amd64.exe"
 
-echo 下载地址: %PYTHON_URL%
 powershell -Command "Invoke-WebRequest -Uri '%PYTHON_URL%' -OutFile '%PYTHON_EXE%'"
 
 if not exist "%PYTHON_EXE%" (
     echo.
-    echo [错误] Python 下载失败，请检查网络连接
-    echo 或手动下载 Python: https://www.python.org/downloads/
+    echo [错误] Python 下载失败
+    echo 请手动下载 Python: https://www.python.org/downloads/
+    echo.
     pause
     exit /b 1
 )
@@ -38,18 +38,26 @@ echo [OK] Python 下载完成
 echo.
 
 REM 静默安装Python
-echo 正在安装 Python（自动添加到系统PATH）...
-echo 这可能需要几分钟，请耐心等待...
+echo 正在安装 Python...
+echo 请在弹出的安装向导中点击"Install Now"...
+echo.
 
-start /wait "" "%PYTHON_EXE%" /quiet InstallAllUsers=1 PrependPath=1 Include_test=0
+start /wait "" "%PYTHON_EXE%" /quiet InstallAllUsers=1 PrependPath=1
+
+REM 刷新环境变量
+set PATH=C:\Python312;C:\Python312\Scripts;%PATH%
 
 REM 验证安装
 python --version >nul 2>&1
 if errorlevel 1 (
     echo.
-    echo [错误] Python 安装失败
-    echo 请手动安装 Python: https://www.python.org/downloads/
-    del "%PYTHON_EXE%" 2>nul
+    echo [错误] Python 安装可能失败，请手动确认
+    echo.
+    echo 手动安装步骤：
+    echo 1. 打开: https://www.python.org/downloads/
+    echo 2. 下载 Python 3.12
+    echo 3. 运行安装包，勾选 "Add to PATH"
+    echo.
     pause
     exit /b 1
 )
@@ -64,7 +72,7 @@ echo   安装项目依赖
 echo ========================================
 echo.
 
-pip install -e . --quiet
+pip install -e . 
 
 if errorlevel 1 (
     echo.
@@ -88,3 +96,5 @@ echo.
 
 cd /d "%~dp0webui"
 python standalone_app.py
+
+pause

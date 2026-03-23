@@ -6,5 +6,10 @@ echo ========================================
 echo.
 echo 正在启动服务...
 echo.
+
 cd /d "%~dp0webui"
 python standalone_app.py
+
+echo.
+echo 服务已停止
+pause
