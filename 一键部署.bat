@@ -41,26 +41,24 @@ echo [OK] Python 下载完成
 echo.
 
 REM 静默安装Python
-echo 正在安装 Python（需要管理员权限）...
-echo 安装过程可能需要1-3分钟，请耐心等待...
+echo 正在安装 Python...
 echo.
 
-start /wait mshta.exe "javascript:var sh=new ActiveXObject('shell.application');sh.ShellExecute('%PYTHON_EXE%','/quiet InstallAllUsers=1 PrependPath=1','runas');close();"
+start /wait "" "%PYTHON_EXE%" /quiet InstallAllUsers=1 PrependPath=1
 
-timeout /t 30 /nobreak >nul
+timeout /t 15 /nobreak >nul
 
-REM 刷新环境变量并验证
+REM 刷新环境变量
 set PATH=C:\Python312;C:\Python312\Scripts;%PATH%
 
 for /f "delims=" %%i in ('where python 2^>nul') do set PYTHON_PATH=%%i
 
 if not defined PYTHON_PATH (
     echo.
-    echo [错误] Python 安装失败！
+    echo [错误] Python 安装可能失败
     echo.
     echo 请手动安装 Python:
-    echo 1. 下载: https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe
-    echo 2. 运行安装包，勾选 "Add to PATH"
+    echo https://www.python.org/downloads/
     echo.
     pause
     exit /b 1
@@ -76,7 +74,7 @@ echo 检查 pip...
 pip --version >nul 2>&1
 if errorlevel 1 (
     echo.
-    echo [警告] pip 未检测到，尝试修复...
+    echo [警告] pip 未检测到
     python -m ensurepip --upgrade
 )
 
@@ -86,11 +84,21 @@ echo   安装项目依赖
 echo ========================================
 echo.
 
-pip install -e .
+REM 先尝试安装完整依赖
+echo 尝试安装完整依赖...
+pip install -e . --quiet
+
+if errorlevel 1 (
+    echo.
+    echo [提示] 完整依赖安装失败，尝试安装最小依赖...
+    echo.
+    pip install -r requirements_webui.txt
+)
 
 if errorlevel 1 (
     echo.
     echo [错误] 依赖安装失败！
+    echo.
     pause
     exit /b 1
 )

@@ -21,7 +21,15 @@ echo.
 echo 正在安装项目依赖...
 echo.
 
+REM 先尝试安装完整依赖
 pip install -e .
+
+if not errorlevel 1 goto :success
+
+echo.
+echo [提示] 完整依赖安装失败，尝试安装最小依赖...
+echo.
+pip install -r requirements_webui.txt
 
 if errorlevel 1 (
     echo.
@@ -30,6 +38,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
+:success
 echo.
 echo ========================================
 echo   依赖安装完成！

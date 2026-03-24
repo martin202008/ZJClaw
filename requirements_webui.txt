@@ -1,0 +1,8 @@
+# ZJClaw WebUI 最小依赖
+# 仅包含运行 WebUI 必需的依赖
+
+flask>=3.0.0
+flask-session>=0.5.0
+litellm>=1.82.1
+httpx>=0.28.0
+packaging>=24.0
