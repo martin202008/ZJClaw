@@ -1,10 +1,10 @@
 # User config (DO NOT COMMIT)
 .zjclaw/
-.zjclaw/
 
 # WebUI session and config
 webui/flask_session/
 webui/config.json
+webui/chat_history.json
 
 # Python
 *.pyc

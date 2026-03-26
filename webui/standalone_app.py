@@ -8,18 +8,141 @@ import asyncio
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify, session
 from flask_session import Session
+from datetime import datetime
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "zjclaw-webui-secret-key-change-in-production")
 app.config["SESSION_TYPE"] = "filesystem"
 app.config["SESSION_FILE_DIR"] = Path(__file__).parent / "flask_session"
+app.config["SESSION_PERMANENT"] = False
+app.config["SESSION_USE_SIGNER"] = True
 
 Session(app)
 
 CONFIG_FILE = Path(__file__).parent / "config.json"
-chat_history = {}
+HISTORY_FILE = Path(__file__).parent / "chat_history.json"
+
 current_provider = None
 current_model = None
+agent_instance = None
+
+def load_chat_history():
+    """Load chat history from file"""
+    if HISTORY_FILE.exists():
+        try:
+            with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
+
+def save_chat_history(history):
+    """Save chat history to file"""
+    try:
+        with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
+            json.dump(history, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"Error saving chat history: {e}")
+
+chat_history = load_chat_history()
+
+def init_agent():
+    """Initialize agent from config - called once on startup"""
+    global agent_instance, current_provider, current_model
+    
+    config = load_webui_config()
+    
+    if not config.get("apiKey"):
+        print("[ZJClaw] No API key configured, waiting for user configuration")
+        return None
+    
+    try:
+        from zjclaw.agent.loop import AgentLoop
+        from zjclaw.bus.queue import MessageBus
+        from zjclaw.session.manager import SessionManager
+        from zjclaw.cron.service import CronService
+        from pathlib import Path
+        import shutil
+        
+        bus = MessageBus()
+        workspace = get_workspace_from_config()
+        workspace.mkdir(parents=True, exist_ok=True)
+        
+        sandbox_enabled = bool(config.get("workspace"))
+        
+        # Copy skills to workspace
+        pkg_skills = Path(__file__).parent.parent / "zjclaw" / "skills"
+        workspace_skills = workspace / "skills"
+        
+        project_skills_dir = Path(__file__).parent.parent / "skills"
+        system_skills_dir = project_skills_dir / "system-skills"
+        user_skills_dir = project_skills_dir / "user-skills"
+        
+        def merge_skills_to_workspace():
+            if workspace_skills.exists():
+                shutil.rmtree(workspace_skills)
+            workspace_skills.mkdir(parents=True, exist_ok=True)
+            
+            if pkg_skills.exists():
+                for skill_dir in pkg_skills.iterdir():
+                    if skill_dir.is_dir():
+                        dest = workspace_skills / skill_dir.name
+                        shutil.copytree(skill_dir, dest)
+            
+            if system_skills_dir.exists():
+                for skill_dir in system_skills_dir.iterdir():
+                    if skill_dir.is_dir():
+                        dest = workspace_skills / skill_dir.name
+                        if dest.exists():
+                            shutil.rmtree(dest)
+                        shutil.copytree(skill_dir, dest)
+            
+            if user_skills_dir.exists():
+                for skill_dir in user_skills_dir.iterdir():
+                    if skill_dir.is_dir():
+                        dest = workspace_skills / skill_dir.name
+                        if dest.exists():
+                            shutil.rmtree(dest)
+                        shutil.copytree(skill_dir, dest)
+        
+        skills_empty = workspace_skills.exists() and not any(workspace_skills.iterdir())
+        if not workspace_skills.exists() or skills_empty:
+            merge_skills_to_workspace()
+        
+        session_manager = SessionManager(workspace)
+        cron_store_path = workspace / "cron_jobs.json"
+        cron = CronService(cron_store_path)
+        
+        # Initialize provider
+        provider = get_provider_for_model(
+            config.get("provider", "minimax"),
+            config["apiKey"],
+            config.get("apiBase")
+        )
+        
+        if provider:
+            current_provider = provider
+            current_model = config.get("model", "MiniMax-Text-01")
+            
+            agent_instance = AgentLoop(
+                bus=bus,
+                provider=current_provider,
+                workspace=workspace,
+                model=current_model,
+                max_iterations=40,
+                context_window_tokens=65536,
+                cron_service=cron,
+                restrict_to_workspace=sandbox_enabled,
+                session_manager=session_manager,
+            )
+            
+            print(f"[ZJClaw] Agent initialized with model: {current_model}")
+        
+        return agent_instance
+        
+    except Exception as e:
+        print(f"[ZJClaw] Error initializing agent: {e}")
+        return None
 
 def load_webui_config():
     """Load WebUI specific configuration"""
@@ -45,6 +168,10 @@ def save_webui_config(config):
     """Save WebUI configuration"""
     with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
+
+# Initialize agent on startup - AFTER all functions are defined
+# We'll initialize on first request instead to avoid ordering issues
+print("[ZJClaw] WebUI ready, agent will be initialized on first request")
 
 def get_provider_for_model(provider_name, api_key, api_base=None):
     """Get the appropriate provider instance for the model"""
@@ -106,7 +233,7 @@ def index():
 
 @app.route("/api/chat", methods=["POST"])
 def chat():
-    global current_provider
+    global agent_instance, current_provider
     
     data = request.json
     message = data.get("message", "")
@@ -123,106 +250,37 @@ def chat():
         }), 400
     
     try:
-        if not current_provider or session.get("provider_changed"):
-            session.pop("provider_changed", None)
-            current_provider = get_provider_for_model(
-                config["provider"],
-                config["apiKey"],
-                config.get("apiBase")
-            )
-            session["provider_changed"] = True
+        # Re-initialize agent if not exists or if config changed
+        if not agent_instance:
+            init_agent()
         
-        from zjclaw.agent.loop import AgentLoop
-        from zjclaw.bus.queue import MessageBus
-        from zjclaw.session.manager import SessionManager
-        from zjclaw.cron.service import CronService
-        from pathlib import Path
-        import shutil
-        
-        bus = MessageBus()
-        workspace = get_workspace_from_config()
-        workspace.mkdir(parents=True, exist_ok=True)
-        
-        sandbox_enabled = bool(config.get("workspace"))
-        
-        # Copy skills to workspace if not exists or empty
-        pkg_skills = Path(__file__).parent.parent / "zjclaw" / "skills"
-        workspace_skills = workspace / "skills"
-        
-        # Also load from system-skills and user-skills directories
-        project_skills_dir = Path(__file__).parent.parent / "skills"
-        system_skills_dir = project_skills_dir / "system-skills"
-        user_skills_dir = project_skills_dir / "user-skills"
-        
-        def merge_skills_to_workspace():
-            """Merge skills from all sources to workspace"""
-            if workspace_skills.exists():
-                shutil.rmtree(workspace_skills)
-            workspace_skills.mkdir(parents=True, exist_ok=True)
-            
-            # Copy built-in skills
-            if pkg_skills.exists():
-                for skill_dir in pkg_skills.iterdir():
-                    if skill_dir.is_dir():
-                        dest = workspace_skills / skill_dir.name
-                        shutil.copytree(skill_dir, dest)
-            
-            # Copy system skills
-            if system_skills_dir.exists():
-                for skill_dir in system_skills_dir.iterdir():
-                    if skill_dir.is_dir():
-                        dest = workspace_skills / skill_dir.name
-                        if dest.exists():
-                            shutil.rmtree(dest)
-                        shutil.copytree(skill_dir, dest)
-            
-            # Copy user skills (override system skills)
-            if user_skills_dir.exists():
-                for skill_dir in user_skills_dir.iterdir():
-                    if skill_dir.is_dir():
-                        dest = workspace_skills / skill_dir.name
-                        if dest.exists():
-                            shutil.rmtree(dest)
-                        shutil.copytree(skill_dir, dest)
-        
-        skills_empty = workspace_skills.exists() and not any(workspace_skills.iterdir())
-        if not workspace_skills.exists() or skills_empty:
-            merge_skills_to_workspace()
-        
-        session_manager = SessionManager(workspace)
-        cron_store_path = workspace / "cron_jobs.json"
-        cron = CronService(cron_store_path)
-        
-        agent = AgentLoop(
-            bus=bus,
-            provider=current_provider,
-            workspace=workspace,
-            model=current_model,
-            max_iterations=40,
-            context_window_tokens=65536,
-            cron_service=cron,
-            restrict_to_workspace=sandbox_enabled,
-            session_manager=session_manager,
-        )
+        if not agent_instance:
+            return jsonify({
+                "error": "请先在设置中配置 API Key"
+            }), 400
         
         async def get_response():
-            response = await agent.process_direct(message, session_id)
-            await agent.close_mcp()
+            response = await agent_instance.process_direct(message, session_id)
+            await agent_instance.close_mcp()
             return response
         
         response = asyncio.run(get_response())
         
+        # Save to chat history
         if session_id not in chat_history:
             chat_history[session_id] = []
         chat_history[session_id].append({"role": "user", "content": message})
         chat_history[session_id].append({"role": "assistant", "content": response})
+        
+        # Save to file
+        save_chat_history(chat_history)
         
         return jsonify({"response": response, "session_id": session_id})
         
     except Exception as e:
         import traceback
         error_msg = str(e)
-        if "api_key" in error_msg.lower() or "auth" in error_msg.lower():
+        if "api_key" in error_msg.lower() or "auth" in error_msg.lower() or "unauthorized" in error_msg.lower():
             error_msg = "API Key 无效或已过期，请检查设置"
         return jsonify({
             "error": f"处理消息时出错: {error_msg}",
@@ -250,7 +308,7 @@ def get_config():
 @app.route("/api/config", methods=["POST"])
 def update_config():
     """Update configuration"""
-    global current_provider, current_model
+    global current_provider, current_model, agent_instance
     
     data = request.json
     provider = data.get("provider", "")
@@ -274,8 +332,11 @@ def update_config():
         }
         save_webui_config(config)
         
+        # Re-initialize agent with new config
         current_provider = None
         current_model = None
+        agent_instance = None
+        init_agent()
         
         return jsonify({"success": True})
     except Exception as e:
@@ -291,6 +352,7 @@ def get_history():
 def clear_history():
     session_id = session.get("session_id", "webui:default")
     chat_history[session_id] = []
+    save_chat_history(chat_history)
     return jsonify({"status": "cleared"})
 
 @app.route("/api/status", methods=["GET"])
@@ -331,7 +393,7 @@ def get_workspace():
 @app.route("/api/workspace", methods=["POST"])
 def set_workspace():
     """Set workspace path"""
-    global current_provider, current_model
+    global current_provider, current_model, agent_instance
     
     data = request.json
     workspace_path = data.get("workspace", "")
@@ -350,6 +412,10 @@ def set_workspace():
         elif "workspace" in config:
             del config["workspace"]
         save_webui_config(config)
+        
+        # Re-initialize agent with new workspace
+        agent_instance = None
+        init_agent()
         
         return jsonify({"success": True})
     except Exception as e:
